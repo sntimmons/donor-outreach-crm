@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Confirm Delete — {{ contact.first_name }} {{ contact.last_name }} — Emerging 100 Outreach{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Permanently Delete Contact?</h1>
+  <a href="{{ url_for('contact_detail', cid=contact.id) }}" class="btn btn-ghost">&larr; Cancel</a>
+</div>
+
+<div class="form-card delete-confirm-card">
+
+  {# Contact identity block #}
+  <div class="delete-contact-info">
+    <div class="delete-contact-name">{{ contact.first_name }} {{ contact.last_name }}</div>
+    {% if contact.organization %}
+    <div class="delete-contact-org">{{ contact.organization }}</div>
+    {% endif %}
+    <div style="margin-top: 0.5rem; display: flex; gap: 0.4rem; flex-wrap: wrap;">
+      <span class="badge badge-type-{{ contact.contact_type }}">{{ contact.contact_type }}</span>
+      <span class="badge badge-status-{{ contact.status }}">{{ contact.status }}</span>
+    </div>
+    {% if contact.email or contact.phone %}
+    <div class="delete-contact-details">
+      {% if contact.email %}<span>{{ contact.email }}</span>{% endif %}
+      {% if contact.phone %}<span>{{ contact.phone }}</span>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  {# Warning block #}
+  <div class="flash flash-error delete-warning-block">
+    <strong>⚠ This cannot be undone.</strong><br><br>
+    Deleting <strong>{{ contact.first_name }} {{ contact.last_name }}</strong> will also
+    permanently remove
+    {% if log_count == 0 %}
+      all outreach log entries for this contact (none logged yet).
+    {% elif log_count == 1 %}
+      <strong>1 outreach log entry</strong> for this contact.
+    {% else %}
+      <strong>all {{ log_count }} outreach log entries</strong> for this contact.
+    {% endif %}
+    <br><br>
+    There is no way to recover this data once deleted.
+    If you are not sure, click <strong>Cancel</strong> instead.
+  </div>
+
+  {# Confirmation form — POST to the actual delete route #}
+  <form method="post" action="{{ url_for('contact_delete', cid=contact.id) }}"
+        onsubmit="return confirm('Last chance: permanently delete {{ contact.first_name }} {{ contact.last_name }}{% if log_count %} and {{ log_count }} log entr{{ \'ies\' if log_count != 1 else \'y\' }}{% endif %}? This cannot be undone.')">
+    <div class="form-actions">
+      <button type="submit" class="btn btn-secondary btn-danger">
+        Yes, Permanently Delete
+      </button>
+      <a href="{{ url_for('contact_detail', cid=contact.id) }}" class="btn btn-ghost">
+        Cancel — Keep This Contact
+      </a>
+    </div>
+  </form>
+
+</div>
+
+{% endblock %}

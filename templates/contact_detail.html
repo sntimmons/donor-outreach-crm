@@ -5,6 +5,7 @@
   <h1>{{ contact.first_name }} {{ contact.last_name }}</h1>
   <div class="header-actions">
     <a href="{{ url_for('contact_edit', cid=contact.id) }}" class="btn btn-secondary">Edit</a>
+    <a href="{{ url_for('contact_delete_confirm', cid=contact.id) }}" class="btn btn-ghost btn-danger">Delete</a>
     <a href="{{ url_for('contacts') }}" class="btn btn-ghost">&larr; All Contacts</a>
   </div>
 </div>

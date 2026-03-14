@@ -53,9 +53,7 @@
         <td class="actions">
           <a href="{{ url_for('contact_detail', cid=c.id) }}" class="btn-link">View</a>
           <a href="{{ url_for('contact_edit', cid=c.id) }}" class="btn-link">Edit</a>
-          <form method="post" action="{{ url_for('contact_delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ c.first_name }} {{ c.last_name }}?')">
-            <button type="submit" class="btn-link btn-danger">Delete</button>
-          </form>
+          <a href="{{ url_for('contact_delete_confirm', cid=c.id) }}" class="btn-link btn-danger">Delete</a>
         </td>
       </tr>
       {% endfor %}

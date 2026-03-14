@@ -13,7 +13,7 @@
     </div>
     <ul class="nav-links">
       <li><a href="{{ url_for('dashboard') }}" {% if request.endpoint == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
-      <li><a href="{{ url_for('contacts') }}" {% if request.endpoint in ('contacts','contact_new','contact_edit','contact_detail') %}class="active"{% endif %}>Contacts</a></li>
+      <li><a href="{{ url_for('contacts') }}" {% if request.endpoint in ('contacts','contact_new','contact_edit','contact_detail','contact_delete_confirm') %}class="active"{% endif %}>Contacts</a></li>
       <li><a href="{{ url_for('outreach_logs') }}" {% if request.endpoint in ('outreach_logs','outreach_new') %}class="active"{% endif %}>Outreach</a></li>
       <li><a href="{{ url_for('weekly_report') }}" {% if request.endpoint == 'weekly_report' %}class="active"{% endif %}>Weekly Report</a></li>
       <li><a href="{{ url_for('how_to_use') }}" {% if request.endpoint == 'how_to_use' %}class="active"{% endif %}>How to Use</a></li>
@@ -25,6 +25,16 @@
       {% endif %}
     </div>
   </nav>
+
+  {# ── Persistent-storage warning — only shown in Railway without a Volume ── #}
+  {% if session.get('logged_in') and not db_is_persistent %}
+  <div class="persistence-warning">
+    <strong>⚠ Data is not persistent.</strong>
+    Your database will be wiped the next time this app redeploys on Railway.
+    To protect your data, add a Railway Volume mounted at <code>/data</code>
+    and set <code>DATABASE_PATH=/data/crm.db</code> in your Railway Variables.
+  </div>
+  {% endif %}
 
   <div class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}

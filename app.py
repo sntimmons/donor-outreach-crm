@@ -1,4 +1,5 @@
 import os
+import sys
 import sqlite3
 import csv
 import io
@@ -108,6 +109,37 @@ def init_db():
 # ---------------------------------------------------------------------------
 
 init_db()
+
+# ---------------------------------------------------------------------------
+# Data-persistence check — visible in Railway's deployment logs
+# ---------------------------------------------------------------------------
+
+# True when data will survive a Railway redeploy:
+#   • DATABASE_PATH is explicitly set (pointing to a mounted Volume), OR
+#   • PORT is not set (local development — no Railway container)
+_db_is_persistent = (
+    bool(os.environ.get("DATABASE_PATH")) or
+    not bool(os.environ.get("PORT"))
+)
+
+print(f"[CRM] Database: {DATABASE}", file=sys.stderr)
+if _db_is_persistent:
+    print("[CRM] Persistence: OK — data will survive redeploys.", file=sys.stderr)
+else:
+    print("[CRM] *** WARNING: DATABASE_PATH is not set. ***", file=sys.stderr)
+    print("[CRM] *** Data WILL BE LOST on the next Railway redeploy.  ***", file=sys.stderr)
+    print("[CRM] *** Add a Railway Volume mounted at /data and set  ***", file=sys.stderr)
+    print("[CRM] *** DATABASE_PATH=/data/crm.db to protect your data. ***", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Template globals — available in every rendered template
+# ---------------------------------------------------------------------------
+
+@app.context_processor
+def inject_globals():
+    """Make db_is_persistent available to every template automatically."""
+    return {"db_is_persistent": _db_is_persistent}
 
 
 # ---------------------------------------------------------------------------
@@ -383,15 +415,38 @@ def contact_detail(cid):
     return render_template("contact_detail.html", contact=contact, logs=logs)
 
 
+@app.route("/contacts/<int:cid>/delete/confirm")
+@login_required
+def contact_delete_confirm(cid):
+    """Show a dedicated confirmation page before deleting a contact."""
+    db = get_db()
+    contact = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
+    if not contact:
+        flash("Contact not found.", "error")
+        return redirect(url_for("contacts"))
+    log_count = db.execute(
+        "SELECT COUNT(*) FROM outreach_logs WHERE contact_id=?", (cid,)
+    ).fetchone()[0]
+    return render_template("contact_delete_confirm.html",
+                           contact=contact, log_count=log_count)
+
+
 @app.route("/contacts/<int:cid>/delete", methods=["POST"])
 @login_required
 def contact_delete(cid):
     db = get_db()
     contact = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
     if contact:
+        log_count = db.execute(
+            "SELECT COUNT(*) FROM outreach_logs WHERE contact_id=?", (cid,)
+        ).fetchone()[0]
         db.execute("DELETE FROM contacts WHERE id=?", (cid,))
         db.commit()
-        flash(f"{contact['first_name']} {contact['last_name']} deleted.", "success")
+        msg = f"{contact['first_name']} {contact['last_name']} deleted"
+        if log_count:
+            msg += f" (along with {log_count} outreach log{'s' if log_count != 1 else ''})"
+        msg += "."
+        flash(msg, "success")
     return redirect(url_for("contacts"))
 
 

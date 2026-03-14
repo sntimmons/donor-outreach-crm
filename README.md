@@ -42,7 +42,7 @@ python app.py
 
 Open http://localhost:5000 in your browser.
 
-The SQLite database (`crm.db`) is created automatically on first run and populated with sample data.
+The SQLite database (`crm.db`) is created automatically on first run. No sample data is inserted — the database starts empty and ready for real entries.
 
 ---
 
@@ -144,5 +144,5 @@ Railway offers a free PostgreSQL add-on. This would require updating `app.py` to
 
 - The app runs in debug mode locally (`python app.py`).
 - Debug mode is **not** used when running via gunicorn in production.
-- The database seeds sample contacts and outreach logs on first run if the tables are empty.
-- To reset the database, delete `crm.db` and restart the app.
+- The database starts completely empty — no sample or seed data is inserted.
+- To reset the local database during development, delete `crm.db` and restart the app. **Never delete the database file on a production server.**
