@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{% if action == 'edit' %}Edit Contact{% else %}New Contact{% endif %} — Emerging 100 Outreach{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{% if action == 'edit' %}Edit Contact{% else %}Add New Contact{% endif %}</h1>
+  <a href="{{ url_for('contacts') }}" class="btn btn-ghost">&larr; Back to Contacts</a>
+</div>
+
+<div class="form-card">
+  <form method="post" action="{% if action == 'edit' %}{{ url_for('contact_edit', cid=cid) }}{% else %}{{ url_for('contact_new') }}{% endif %}">
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="first_name">First Name <span class="required">*</span></label>
+        <input type="text" id="first_name" name="first_name" required
+               value="{{ contact.first_name if contact.first_name else '' }}" />
+      </div>
+      <div class="form-group">
+        <label for="last_name">Last Name <span class="required">*</span></label>
+        <input type="text" id="last_name" name="last_name" required
+               value="{{ contact.last_name if contact.last_name else '' }}" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="contact_type">Type <span class="required">*</span></label>
+        <select id="contact_type" name="contact_type" required>
+          <option value="donor" {% if (contact.contact_type | default('donor')) == 'donor' %}selected{% endif %}>Donor</option>
+          <option value="volunteer" {% if (contact.contact_type | default('')) == 'volunteer' %}selected{% endif %}>Volunteer</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          {% set cur_status = contact.status | default('active') %}
+          <option value="active" {% if cur_status == 'active' %}selected{% endif %}>Active</option>
+          <option value="inactive" {% if cur_status == 'inactive' %}selected{% endif %}>Inactive</option>
+          <option value="prospect" {% if cur_status == 'prospect' %}selected{% endif %}>Prospect</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email"
+               value="{{ contact.email if contact.email else '' }}" />
+      </div>
+      <div class="form-group">
+        <label for="phone">Phone</label>
+        <input type="text" id="phone" name="phone"
+               value="{{ contact.phone if contact.phone else '' }}" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="organization">Organization</label>
+      <input type="text" id="organization" name="organization"
+             value="{{ contact.organization if contact.organization else '' }}" />
+    </div>
+
+    <div class="form-group">
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes" rows="3">{{ contact.notes if contact.notes else '' }}</textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        {% if action == 'edit' %}Save Changes{% else %}Add Contact{% endif %}
+      </button>
+      <a href="{{ url_for('contacts') }}" class="btn btn-ghost">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

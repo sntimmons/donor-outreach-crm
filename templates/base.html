@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Emerging 100 Outreach{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <a href="{{ url_for('dashboard') }}">&#9679; Emerging 100 Outreach</a>
+    </div>
+    <ul class="nav-links">
+      <li><a href="{{ url_for('dashboard') }}" {% if request.endpoint == 'dashboard' %}class="active"{% endif %}>Dashboard</a></li>
+      <li><a href="{{ url_for('contacts') }}" {% if request.endpoint in ('contacts','contact_new','contact_edit','contact_detail') %}class="active"{% endif %}>Contacts</a></li>
+      <li><a href="{{ url_for('outreach_logs') }}" {% if request.endpoint in ('outreach_logs','outreach_new') %}class="active"{% endif %}>Outreach</a></li>
+      <li><a href="{{ url_for('weekly_report') }}" {% if request.endpoint == 'weekly_report' %}class="active"{% endif %}>Weekly Report</a></li>
+      <li><a href="{{ url_for('how_to_use') }}" {% if request.endpoint == 'how_to_use' %}class="active"{% endif %}>How to Use</a></li>
+    </ul>
+  </nav>
+
+  <div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </div>
+
+  <footer class="footer">
+    <p>Emerging 100 Outreach &mdash; Community outreach tracker</p>
+  </footer>
+</body>
+</html>

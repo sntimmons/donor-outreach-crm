@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Contacts — Emerging 100 Outreach{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Contacts</h1>
+  <a href="{{ url_for('contact_new') }}" class="btn btn-primary">+ Add Contact</a>
+</div>
+
+<form class="filter-bar" method="get" action="{{ url_for('contacts') }}">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search name, email, org…" class="search-input" />
+  <select name="type" class="select-input">
+    <option value="">All Types</option>
+    <option value="donor" {% if ctype == 'donor' %}selected{% endif %}>Donors</option>
+    <option value="volunteer" {% if ctype == 'volunteer' %}selected{% endif %}>Volunteers</option>
+  </select>
+  <button type="submit" class="btn btn-secondary">Filter</button>
+  {% if q or ctype %}
+    <a href="{{ url_for('contacts') }}" class="btn btn-ghost">Clear</a>
+  {% endif %}
+</form>
+
+<p class="result-count">{{ contacts|length }} contact{{ 's' if contacts|length != 1 }}</p>
+
+{% if contacts %}
+<div class="table-wrapper">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Organization</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in contacts %}
+      <tr>
+        <td><a href="{{ url_for('contact_detail', cid=c.id) }}">{{ c.first_name }} {{ c.last_name }}</a></td>
+        <td><span class="badge badge-type-{{ c.contact_type }}">{{ c.contact_type }}</span></td>
+        <td>{{ c.organization if c.organization else '—' }}</td>
+        <td>{{ c.email if c.email else '—' }}</td>
+        <td>{{ c.phone if c.phone else '—' }}</td>
+        <td><span class="badge badge-status-{{ c.status }}">{{ c.status }}</span></td>
+        <td class="actions">
+          <a href="{{ url_for('contact_detail', cid=c.id) }}" class="btn-link">View</a>
+          <a href="{{ url_for('contact_edit', cid=c.id) }}" class="btn-link">Edit</a>
+          <form method="post" action="{{ url_for('contact_delete', cid=c.id) }}" style="display:inline" onsubmit="return confirm('Delete {{ c.first_name }} {{ c.last_name }}?')">
+            <button type="submit" class="btn-link btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="empty-state">No contacts found. <a href="{{ url_for('contact_new') }}">Add one now.</a></p>
+{% endif %}
+
+<div class="export-bar">
+  <a href="{{ url_for('export_contacts') }}" class="btn btn-ghost">&#8595; Export CSV</a>
+</div>
+{% endblock %}

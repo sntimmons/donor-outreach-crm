@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Weekly Report — Emerging 100 Outreach{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Weekly Report</h1>
+  <div class="header-actions">
+    <span class="week-label">{{ week_start }} &ndash; {{ week_end }}</span>
+    <a href="{{ url_for('export_weekly') }}" class="btn btn-ghost">&#8595; Export CSV</a>
+  </div>
+</div>
+
+<!-- Report explanation -->
+<div class="report-explainer">
+  <p>
+    This report shows all outreach activity that was logged in the system for the current week
+    (Monday through Sunday). Every number on this page comes directly from entries your team
+    added to the Outreach Logs. If an entry was not logged, it will not appear here.
+  </p>
+  <p>
+    The report counts total outreach attempts, how many different contacts were reached,
+    what methods were used, what the results were, who on the team did the outreach,
+    any follow-ups due this week, and any donations received. New contacts added to the
+    system this week are listed at the bottom.
+  </p>
+</div>
+
+<!-- Summary Cards -->
+<div class="stat-grid">
+  <div class="stat-card stat-blue">
+    <div class="stat-value">{{ total_attempts }}</div>
+    <div class="stat-label">Total Outreach Attempts</div>
+  </div>
+  <div class="stat-card stat-teal">
+    <div class="stat-value">{{ unique_contacts }}</div>
+    <div class="stat-label">Unique Contacts Reached</div>
+  </div>
+  <div class="stat-card stat-gold">
+    <div class="stat-value">${{ "%.0f"|format(donation_total) }}</div>
+    <div class="stat-label">Total Donations</div>
+  </div>
+  <div class="stat-card stat-green">
+    <div class="stat-value">{{ new_contacts|length }}</div>
+    <div class="stat-label">New Contacts Added</div>
+  </div>
+</div>
+
+<div class="report-grid">
+
+  <!-- By Method -->
+  <div class="report-card">
+    <h2>Outreach by Method</h2>
+    {% if by_method %}
+    <table class="mini-table">
+      <thead><tr><th>Method</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for row in by_method %}
+        <tr>
+          <td><span class="badge badge-method-{{ row.method }}">{{ row.method.replace('_',' ') }}</span></td>
+          <td><strong>{{ row.cnt }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="empty-state-sm">No data this week.</p>{% endif %}
+  </div>
+
+  <!-- By Outcome -->
+  <div class="report-card">
+    <h2>Outreach by Outcome</h2>
+    {% if by_outcome %}
+    <table class="mini-table">
+      <thead><tr><th>Outcome</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for row in by_outcome %}
+        <tr>
+          <td><span class="badge badge-outcome-{{ row.outcome }}">{{ row.outcome.replace('_',' ') }}</span></td>
+          <td><strong>{{ row.cnt }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="empty-state-sm">No data this week.</p>{% endif %}
+  </div>
+
+  <!-- By Team Member -->
+  <div class="report-card">
+    <h2>Outreach by Team Member</h2>
+    {% if by_team %}
+    <table class="mini-table">
+      <thead><tr><th>Team Member</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for row in by_team %}
+        <tr>
+          <td>{{ row.team_member }}</td>
+          <td><strong>{{ row.cnt }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="empty-state-sm">No data this week.</p>{% endif %}
+  </div>
+
+</div>
+
+<!-- Follow-ups Due -->
+<div class="report-section">
+  <h2>Follow-ups Due This Week
+    <span class="count-badge">{{ followups_due|length }}</span>
+  </h2>
+  {% if followups_due %}
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead><tr><th>Due Date</th><th>Contact</th><th>Team Member</th><th>Notes</th></tr></thead>
+      <tbody>
+        {% for f in followups_due %}
+        <tr>
+          <td>{{ f.follow_up_date }}</td>
+          <td><a href="{{ url_for('contact_detail', cid=f.contact_id) }}">{{ f.contact_name }}</a></td>
+          <td>{{ f.team_member }}</td>
+          <td>{{ f.notes if f.notes else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="empty-state">No follow-ups due this week.</p>{% endif %}
+</div>
+
+<!-- Overdue Follow-ups -->
+{% if overdue_followups %}
+<div class="report-section">
+  <h2 class="overdue-heading">Overdue Follow-ups
+    <span class="count-badge count-badge-red">{{ overdue_followups|length }}</span>
+  </h2>
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead><tr><th>Was Due</th><th>Contact</th><th>Team Member</th><th>Notes</th></tr></thead>
+      <tbody>
+        {% for f in overdue_followups %}
+        <tr class="row-overdue">
+          <td>{{ f.follow_up_date }}</td>
+          <td><a href="{{ url_for('contact_detail', cid=f.contact_id) }}">{{ f.contact_name }}</a></td>
+          <td>{{ f.team_member }}</td>
+          <td>{{ f.notes if f.notes else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- New Contacts -->
+<div class="report-section">
+  <h2>New Contacts This Week
+    <span class="count-badge">{{ new_contacts|length }}</span>
+  </h2>
+  {% if new_contacts %}
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Type</th><th>Organization</th><th>Email</th><th>Added</th></tr></thead>
+      <tbody>
+        {% for c in new_contacts %}
+        <tr>
+          <td><a href="{{ url_for('contact_detail', cid=c.id) }}">{{ c.first_name }} {{ c.last_name }}</a></td>
+          <td><span class="badge badge-type-{{ c.contact_type }}">{{ c.contact_type }}</span></td>
+          <td>{{ c.organization if c.organization else '—' }}</td>
+          <td>{{ c.email if c.email else '—' }}</td>
+          <td>{{ c.created_at[:10] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="empty-state">No new contacts added this week.</p>{% endif %}
+</div>
+
+{% endblock %}
