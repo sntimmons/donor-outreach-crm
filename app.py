@@ -605,6 +605,24 @@ def how_to_use():
 
 
 # ---------------------------------------------------------------------------
+# Admin — Clear All Data
+# TEMPORARY ROUTE: Delete this route after you have used it once.
+# ---------------------------------------------------------------------------
+
+@app.route("/admin/clear-data", methods=["GET", "POST"])
+@login_required
+def admin_clear_data():
+    if request.method == "POST":
+        db = get_db()
+        db.execute("DELETE FROM outreach_logs")
+        db.execute("DELETE FROM contacts")
+        db.commit()
+        flash("All contacts and outreach logs have been permanently deleted.", "success")
+        return redirect(url_for("dashboard"))
+    return render_template("admin_clear.html")
+
+
+# ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
 

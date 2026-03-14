@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Clear All Data — Emerging 100 Outreach{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Clear All Data</h1>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">&larr; Back to Dashboard</a>
+</div>
+
+<div class="form-card" style="max-width: 560px;">
+
+  <div class="flash flash-error" style="margin-bottom: 1.5rem;">
+    <strong>Warning: This cannot be undone.</strong><br>
+    Clicking the button below will permanently delete every contact and every outreach
+    log in the database. The app will start with an empty database.
+  </div>
+
+  <p style="margin-bottom: 1.5rem; color: var(--text-muted, #555);">
+    Use this only to clear sample or test data before the team starts real outreach.
+    After you click the button and see the success message, please remove this route
+    from <code>app.py</code> so it cannot be used again.
+  </p>
+
+  <form method="post" action="{{ url_for('admin_clear_data') }}">
+    <div class="form-actions">
+      <button type="submit" class="btn btn-danger"
+              onclick="return confirm('Are you absolutely sure? This will delete ALL contacts and ALL outreach logs. This cannot be undone.');">
+        Yes, Delete Everything
+      </button>
+      <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel — Go Back</a>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
