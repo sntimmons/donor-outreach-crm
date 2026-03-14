@@ -1,178 +1,556 @@
 {% extends "base.html" %}
-{% block title %}Weekly Report — Emerging 100 Outreach{% endblock %}
+{% block title %}Executive Report — Emerging 100 Outreach{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>Weekly Report</h1>
-  <div class="header-actions">
-    <span class="week-label">{{ week_start }} &ndash; {{ week_end }}</span>
-    <a href="{{ url_for('export_weekly') }}" class="btn btn-ghost">&#8595; Export CSV</a>
+
+{# ── Label maps ──────────────────────────────────────────────────────────── #}
+{% set method_labels = {
+    'call':      'Phone Call',
+    'text':      'Text Message',
+    'email':     'Email',
+    'in_person': 'In Person'
+} %}
+{% set outcome_labels = {
+    'reached':          'Reached',
+    'voicemail':        'Left Voicemail',
+    'no_answer':        'No Answer',
+    'interested':       'Interested',
+    'follow_up_needed': 'Needs Follow-Up',
+    'donated':          'Donated',
+    'volunteered':      'Volunteered'
+} %}
+
+{# ── Screen header ────────────────────────────────────────────────────────── #}
+<div class="exec-report-header no-print">
+  <div>
+    <div class="exec-report-org">Emerging 100 Outreach</div>
+    <h1 class="exec-report-title">Executive Outreach Report</h1>
+    <div class="exec-report-meta">
+      Week of {{ week_start }} – {{ week_end }}&nbsp;&nbsp;·&nbsp;&nbsp;Generated {{ today_str }}
+    </div>
+  </div>
+  <div class="exec-report-actions">
+    <button onclick="window.print()" class="btn btn-white-outline">
+      ⬇&nbsp; Export PDF
+    </button>
+    <a href="{{ url_for('export_weekly') }}" class="btn btn-white-outline">
+      ↓&nbsp; Export CSV
+    </a>
   </div>
 </div>
 
-<!-- Report explanation -->
-<div class="report-explainer">
-  <p>
-    This report shows all outreach activity that was logged in the system for the current week
-    (Monday through Sunday). Every number on this page comes directly from entries your team
-    added to the Outreach Logs. If an entry was not logged, it will not appear here.
-  </p>
-  <p>
-    The report counts total outreach attempts, how many different contacts were reached,
-    what methods were used, what the results were, who on the team did the outreach,
-    any follow-ups due this week, and any donations received. New contacts added to the
-    system this week are listed at the bottom.
-  </p>
+{# ── Print-only header ────────────────────────────────────────────────────── #}
+<div class="print-only-header print-only">
+  <div class="print-org">Emerging 100 Outreach</div>
+  <div class="print-title">Executive Outreach Report</div>
+  <div class="print-meta">Week of {{ week_start }} – {{ week_end }} &nbsp;·&nbsp; Generated {{ today_str }}</div>
 </div>
 
-<!-- Summary Cards -->
-<div class="stat-grid">
-  <div class="stat-card stat-blue">
-    <div class="stat-value">{{ total_attempts }}</div>
-    <div class="stat-label">Total Outreach Attempts</div>
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# 1 · EXECUTIVE SUMMARY                                                       #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="exec-section">
+  <div class="exec-section-heading">
+    <span><span class="exec-sec-num">1</span>Executive Summary</span>
+    <span class="exec-heading-note">All-time totals</span>
   </div>
-  <div class="stat-card stat-teal">
-    <div class="stat-value">{{ unique_contacts }}</div>
-    <div class="stat-label">Unique Contacts Reached</div>
-  </div>
-  <div class="stat-card stat-gold">
-    <div class="stat-value">${{ "%.0f"|format(donation_total) }}</div>
-    <div class="stat-label">Total Donations</div>
-  </div>
-  <div class="stat-card stat-green">
-    <div class="stat-value">{{ new_contacts|length }}</div>
-    <div class="stat-label">New Contacts Added</div>
+  <div class="exec-summary-grid">
+    <div class="exec-stat">
+      <div class="exec-stat-value">{{ total_contacts }}</div>
+      <div class="exec-stat-label">Contacts in CRM</div>
+    </div>
+    <div class="exec-stat">
+      <div class="exec-stat-value">{{ total_outreach }}</div>
+      <div class="exec-stat-label">Outreach Attempts</div>
+    </div>
+    <div class="exec-stat exec-stat-money">
+      <div class="exec-stat-value">${{ "%.0f"|format(total_raised) }}</div>
+      <div class="exec-stat-label">Total Raised</div>
+    </div>
+    <div class="exec-stat">
+      <div class="exec-stat-value">{{ donations_count }}</div>
+      <div class="exec-stat-label">Donations Received</div>
+    </div>
+    <div class="exec-stat">
+      <div class="exec-stat-value">{{ volunteers_committed }}</div>
+      <div class="exec-stat-label">Volunteers Committed</div>
+    </div>
+    <div class="exec-stat">
+      <div class="exec-stat-value">{{ followups_pending }}</div>
+      <div class="exec-stat-label">Follow-Ups Pending</div>
+    </div>
+    <div class="exec-stat">
+      <div class="exec-stat-value">{{ interested_count }}</div>
+      <div class="exec-stat-label">Interested Prospects</div>
+    </div>
   </div>
 </div>
 
-<div class="report-grid">
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# 2 · FUNDRAISING PROGRESS                                                    #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="exec-section">
+  <div class="exec-section-heading">
+    <span><span class="exec-sec-num">2</span>Fundraising Progress</span>
+    <span class="exec-heading-note">All donations logged in system</span>
+  </div>
 
-  <!-- By Method -->
-  <div class="report-card">
-    <h2>Outreach by Method</h2>
-    {% if by_method %}
-    <table class="mini-table">
-      <thead><tr><th>Method</th><th>Count</th></tr></thead>
-      <tbody>
-        {% for row in by_method %}
+  {# Summit Goal #}
+  <div class="goal-item">
+    <div class="goal-header">
+      <div>
+        <span class="goal-name">Summit Goal</span>
+        <span class="goal-target">— Target: ${{ "{:,.0f}".format(SUMMIT_GOAL) }}</span>
+      </div>
+      <span class="goal-pct-label">{{ summit_pct }}%</span>
+    </div>
+    <div class="goal-track">
+      <div class="goal-fill
+        {%- if summit_pct >= 75 %} goal-fill-green
+        {%- elif summit_pct >= 50 %} goal-fill-blue
+        {%- elif summit_pct >= 25 %} goal-fill-orange
+        {%- else %} goal-fill-red{%- endif %}"
+        style="width: {{ summit_pct }}%"></div>
+    </div>
+    <div class="goal-meta">
+      <span class="goal-raised">${{ "{:,.2f}".format(total_raised) }} raised</span>
+      <span class="goal-remaining">${{ "{:,.2f}".format(summit_remaining) }} remaining</span>
+    </div>
+  </div>
+
+  {# Class Total Goal #}
+  <div class="goal-item" style="margin-top: 1.5rem;">
+    <div class="goal-header">
+      <div>
+        <span class="goal-name">Class Total Goal</span>
+        <span class="goal-target">— Target: ${{ "{:,.0f}".format(CLASS_GOAL) }}</span>
+      </div>
+      <span class="goal-pct-label">{{ class_pct }}%</span>
+    </div>
+    <div class="goal-track">
+      <div class="goal-fill
+        {%- if class_pct >= 75 %} goal-fill-green
+        {%- elif class_pct >= 50 %} goal-fill-blue
+        {%- elif class_pct >= 25 %} goal-fill-orange
+        {%- else %} goal-fill-red{%- endif %}"
+        style="width: {{ class_pct }}%"></div>
+    </div>
+    <div class="goal-meta">
+      <span class="goal-raised">${{ "{:,.2f}".format(total_raised) }} raised</span>
+      <span class="goal-remaining">${{ "{:,.2f}".format(class_remaining) }} remaining</span>
+    </div>
+  </div>
+
+  <p class="goal-note">Both goals track the same total donated funds recorded in the system.</p>
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# 3 · CONTACT PIPELINE                                                        #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="exec-section">
+  <div class="exec-section-heading">
+    <span><span class="exec-sec-num">3</span>Contact Pipeline</span>
+    <span class="exec-heading-note">{{ total_contacts }} total contacts</span>
+  </div>
+  {% if total_contacts > 0 %}
+  <table class="pipeline-tbl">
+    <thead>
+      <tr>
+        <th>Stage</th>
+        <th>Contacts</th>
+        <th>% of Total</th>
+        <th class="pipeline-bar-col">Distribution</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in pipeline_data %}
+      {% if row.cnt > 0 %}
+      <tr>
+        <td><span class="badge badge-status-{{ row.status }}">{{ row.status }}</span></td>
+        <td><strong>{{ row.cnt }}</strong></td>
+        <td>{{ row.pct }}%</td>
+        <td class="pipeline-bar-col">
+          <div class="pipeline-mini-bar">
+            <div class="pipeline-mini-fill" style="width: {{ row.pct }}%"></div>
+          </div>
+        </td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No contacts in the CRM yet.</p>
+  {% endif %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# 4 · OUTREACH ACTIVITY                                                       #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="exec-section">
+  <div class="exec-section-heading">
+    <span><span class="exec-sec-num">4</span>Outreach Activity</span>
+    <span class="exec-heading-note">All-time · This week: {{ week_start }} – {{ week_end }}</span>
+  </div>
+
+  {# Weekly quick stats #}
+  <div class="exec-week-bar">
+    <div class="exec-week-chip">
+      <strong>{{ total_attempts }}</strong>&nbsp; attempts this week
+    </div>
+    <div class="exec-week-chip">
+      <strong>{{ unique_contacts }}</strong>&nbsp; unique contacts
+    </div>
+    <div class="exec-week-chip exec-week-chip-money">
+      <strong>${{ "%.0f"|format(donation_total) }}</strong>&nbsp; donated this week
+    </div>
+    {% if new_contacts %}
+    <div class="exec-week-chip">
+      <strong>{{ new_contacts|length }}</strong>&nbsp; new contacts added
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="report-2col">
+    {# By Method #}
+    <div>
+      <div class="exec-sub-heading">By Method</div>
+      {% if by_method_all %}
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th class="text-right">All Time</th>
+            <th class="text-right">This Week</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in by_method_all %}
+          <tr>
+            <td>
+              <span class="badge badge-method-{{ row.method }}">
+                {{ method_labels.get(row.method, row.method) }}
+              </span>
+            </td>
+            <td class="text-right"><strong>{{ row.cnt }}</strong></td>
+            <td class="text-right">
+              {% set wc = method_week_map.get(row.method, 0) %}
+              {{ wc if wc > 0 else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state-sm">No outreach logged yet.</p>
+      {% endif %}
+    </div>
+
+    {# By Outcome #}
+    <div>
+      <div class="exec-sub-heading">By Outcome</div>
+      {% if by_outcome_all %}
+      <table class="mini-table">
+        <thead>
+          <tr>
+            <th>Outcome</th>
+            <th class="text-right">All Time</th>
+            <th class="text-right">This Week</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in by_outcome_all %}
+          <tr>
+            <td>
+              <span class="badge badge-outcome-{{ row.outcome }}">
+                {{ outcome_labels.get(row.outcome, row.outcome) }}
+              </span>
+            </td>
+            <td class="text-right"><strong>{{ row.cnt }}</strong></td>
+            <td class="text-right">
+              {% set wc = outcome_week_map.get(row.outcome, 0) %}
+              {{ wc if wc > 0 else '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="empty-state-sm">No outreach logged yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  {# By Team Member — this week only if data exists #}
+  {% if by_team %}
+  <div style="margin-top: 1.5rem;">
+    <div class="exec-sub-heading">By Team Member — This Week</div>
+    <table class="mini-table" style="max-width: 420px;">
+      <thead>
         <tr>
-          <td><span class="badge badge-method-{{ row.method }}">{{ row.method.replace('_',' ') }}</span></td>
-          <td><strong>{{ row.cnt }}</strong></td>
+          <th>Team Member</th>
+          <th class="text-right">Outreach Count</th>
         </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}<p class="empty-state-sm">No data this week.</p>{% endif %}
-  </div>
-
-  <!-- By Outcome -->
-  <div class="report-card">
-    <h2>Outreach by Outcome</h2>
-    {% if by_outcome %}
-    <table class="mini-table">
-      <thead><tr><th>Outcome</th><th>Count</th></tr></thead>
-      <tbody>
-        {% for row in by_outcome %}
-        <tr>
-          <td><span class="badge badge-outcome-{{ row.outcome }}">{{ row.outcome.replace('_',' ') }}</span></td>
-          <td><strong>{{ row.cnt }}</strong></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}<p class="empty-state-sm">No data this week.</p>{% endif %}
-  </div>
-
-  <!-- By Team Member -->
-  <div class="report-card">
-    <h2>Outreach by Team Member</h2>
-    {% if by_team %}
-    <table class="mini-table">
-      <thead><tr><th>Team Member</th><th>Count</th></tr></thead>
+      </thead>
       <tbody>
         {% for row in by_team %}
         <tr>
           <td>{{ row.team_member }}</td>
-          <td><strong>{{ row.cnt }}</strong></td>
+          <td class="text-right"><strong>{{ row.cnt }}</strong></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
-    {% else %}<p class="empty-state-sm">No data this week.</p>{% endif %}
   </div>
-
+  {% endif %}
 </div>
 
-<!-- Follow-ups Due -->
-<div class="report-section">
-  <h2>Follow-ups Due This Week
-    <span class="count-badge">{{ followups_due|length }}</span>
-  </h2>
-  {% if followups_due %}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# 5 · DONATIONS SUMMARY                                                       #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="exec-section">
+  <div class="exec-section-heading">
+    <span><span class="exec-sec-num">5</span>Donations Summary</span>
+    <span class="exec-heading-note">All-time</span>
+  </div>
+
+  <div class="donation-stats">
+    <div class="donation-stat">
+      <div class="donation-stat-value">${{ "{:,.2f}".format(total_raised) }}</div>
+      <div class="donation-stat-label">Total Raised</div>
+    </div>
+    <div class="donation-stat">
+      <div class="donation-stat-value">{{ donations_count }}</div>
+      <div class="donation-stat-label">Donations Received</div>
+    </div>
+    <div class="donation-stat">
+      <div class="donation-stat-value">
+        {% if donations_count > 0 %} ${{ "{:,.2f}".format(donation_avg) }}
+        {% else %}—{% endif %}
+      </div>
+      <div class="donation-stat-label">Average Donation</div>
+    </div>
+    <div class="donation-stat">
+      <div class="donation-stat-value">
+        {% if donations_count > 0 %} ${{ "{:,.2f}".format(donation_max) }}
+        {% else %}—{% endif %}
+      </div>
+      <div class="donation-stat-label">Largest Donation</div>
+    </div>
+  </div>
+
+  {% if recent_donations %}
+  <div class="exec-sub-heading" style="margin-bottom: 0.75rem;">Recent Donations</div>
   <div class="table-wrapper">
     <table class="data-table">
-      <thead><tr><th>Due Date</th><th>Contact</th><th>Team Member</th><th>Notes</th></tr></thead>
-      <tbody>
-        {% for f in followups_due %}
+      <thead>
         <tr>
-          <td>{{ f.follow_up_date }}</td>
-          <td><a href="{{ url_for('contact_detail', cid=f.contact_id) }}">{{ f.contact_name }}</a></td>
-          <td>{{ f.team_member }}</td>
-          <td>{{ f.notes if f.notes else '—' }}</td>
+          <th>Date</th>
+          <th>Contact</th>
+          <th>Recorded By</th>
+          <th class="text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in recent_donations %}
+        <tr>
+          <td>{{ d.outreach_date }}</td>
+          <td>
+            <a href="{{ url_for('contact_detail', cid=d.contact_id) }}">{{ d.contact_name }}</a>
+          </td>
+          <td>{{ d.team_member }}</td>
+          <td class="text-right">
+            <strong class="amount-green">${{ "{:,.2f}".format(d.donation_amount) }}</strong>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}<p class="empty-state">No follow-ups due this week.</p>{% endif %}
+  {% else %}
+  <p class="empty-state">No donations recorded yet.</p>
+  {% endif %}
 </div>
 
-<!-- Overdue Follow-ups -->
-{% if overdue_followups %}
-<div class="report-section">
-  <h2 class="overdue-heading">Overdue Follow-ups
-    <span class="count-badge count-badge-red">{{ overdue_followups|length }}</span>
-  </h2>
-  <div class="table-wrapper">
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# 6 · FOLLOW-UP ACTION ITEMS                                                  #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="exec-section">
+  <div class="exec-section-heading">
+    <span><span class="exec-sec-num">6</span>Follow-Up Action Items</span>
+    <span class="exec-heading-note">Scheduled &amp; overdue</span>
+  </div>
+
+  {% if overdue_followups %}
+  <div class="exec-sub-heading overdue-heading" style="margin-bottom: 0.6rem;">
+    ⚠&nbsp; Overdue &nbsp;<span class="count-badge count-badge-red">{{ overdue_followups|length }}</span>
+  </div>
+  <div class="table-wrapper" style="margin-bottom: 1.5rem;">
     <table class="data-table">
-      <thead><tr><th>Was Due</th><th>Contact</th><th>Team Member</th><th>Notes</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Was Due</th>
+          <th>Contact</th>
+          <th>Team Member</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
       <tbody>
         {% for f in overdue_followups %}
         <tr class="row-overdue">
           <td>{{ f.follow_up_date }}</td>
-          <td><a href="{{ url_for('contact_detail', cid=f.contact_id) }}">{{ f.contact_name }}</a></td>
+          <td>
+            <a href="{{ url_for('contact_detail', cid=f.contact_id) }}">{{ f.contact_name }}</a>
+          </td>
           <td>{{ f.team_member }}</td>
-          <td>{{ f.notes if f.notes else '—' }}</td>
+          <td class="notes-cell">{{ f.notes if f.notes else '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-</div>
-{% endif %}
+  {% endif %}
 
-<!-- New Contacts -->
-<div class="report-section">
-  <h2>New Contacts This Week
-    <span class="count-badge">{{ new_contacts|length }}</span>
-  </h2>
-  {% if new_contacts %}
+  {% if followups_due %}
+  <div class="exec-sub-heading" style="margin-bottom: 0.6rem;">
+    Due This Week &nbsp;<span class="count-badge">{{ followups_due|length }}</span>
+  </div>
   <div class="table-wrapper">
     <table class="data-table">
-      <thead><tr><th>Name</th><th>Type</th><th>Organization</th><th>Email</th><th>Added</th></tr></thead>
-      <tbody>
-        {% for c in new_contacts %}
+      <thead>
         <tr>
-          <td><a href="{{ url_for('contact_detail', cid=c.id) }}">{{ c.first_name }} {{ c.last_name }}</a></td>
-          <td><span class="badge badge-type-{{ c.contact_type }}">{{ c.contact_type }}</span></td>
-          <td>{{ c.organization if c.organization else '—' }}</td>
-          <td>{{ c.email if c.email else '—' }}</td>
-          <td>{{ c.created_at[:10] }}</td>
+          <th>Due Date</th>
+          <th>Contact</th>
+          <th>Team Member</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in followups_due %}
+        <tr>
+          <td>{{ f.follow_up_date }}</td>
+          <td>
+            <a href="{{ url_for('contact_detail', cid=f.contact_id) }}">{{ f.contact_name }}</a>
+          </td>
+          <td>{{ f.team_member }}</td>
+          <td class="notes-cell">{{ f.notes if f.notes else '—' }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% else %}<p class="empty-state">No new contacts added this week.</p>{% endif %}
+  {% endif %}
+
+  {% if not followups_due and not overdue_followups %}
+  <p class="empty-state">No follow-ups scheduled or overdue.</p>
+  {% endif %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# 7 · CONTACTS NEEDING FOLLOW-UP (pipeline status)                            #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="exec-section">
+  <div class="exec-section-heading">
+    <span><span class="exec-sec-num">7</span>Contacts Needing Follow-Up</span>
+    <span class="exec-heading-note">Pipeline stage: Follow Up Needed</span>
+  </div>
+  {% if followup_list %}
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Organization</th>
+          <th>Last Outreach</th>
+          <th>Next Follow-Up</th>
+          <th>Last Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in followup_list %}
+        <tr>
+          <td>
+            <a href="{{ url_for('contact_detail', cid=c.id) }}">{{ c.name }}</a>
+          </td>
+          <td>{{ c.organization if c.organization else '—' }}</td>
+          <td>{{ c.last_outreach_date if c.last_outreach_date else '—' }}</td>
+          <td>{{ c.next_follow_up if c.next_follow_up else '—' }}</td>
+          <td class="notes-cell">{{ c.last_notes if c.last_notes else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No contacts are currently marked as needing follow-up.</p>
+  {% endif %}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# 8 · RECENT OUTREACH ACTIVITY                                                #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="exec-section">
+  <div class="exec-section-heading">
+    <span><span class="exec-sec-num">8</span>Recent Outreach Activity</span>
+    <span class="exec-heading-note">Last {{ recent_outreach|length }} log entries</span>
+  </div>
+  {% if recent_outreach %}
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Contact</th>
+          <th>Team Member</th>
+          <th>Method</th>
+          <th>Outcome</th>
+          <th class="text-right">Donation</th>
+          <th>Follow-Up</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent_outreach %}
+        <tr>
+          <td>{{ r.outreach_date }}</td>
+          <td>
+            <a href="{{ url_for('contact_detail', cid=r.contact_id) }}">{{ r.contact_name }}</a>
+          </td>
+          <td>{{ r.team_member }}</td>
+          <td>
+            <span class="badge badge-method-{{ r.method }}">
+              {{ method_labels.get(r.method, r.method) }}
+            </span>
+          </td>
+          <td>
+            <span class="badge badge-outcome-{{ r.outcome }}">
+              {{ outcome_labels.get(r.outcome, r.outcome) }}
+            </span>
+          </td>
+          <td class="text-right">
+            {% if r.donation_amount and r.donation_amount > 0 %}
+              <strong class="amount-green">${{ "{:,.2f}".format(r.donation_amount) }}</strong>
+            {% else %}—{% endif %}
+          </td>
+          <td>{{ r.follow_up_date if r.follow_up_date else '—' }}</td>
+          <td class="notes-cell">{{ r.notes if r.notes else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No outreach activity logged yet.</p>
+  {% endif %}
+</div>
+
+{# ── Report footer ───────────────────────────────────────────────────────── #}
+<div class="exec-report-footer no-print">
+  <span>Emerging 100 Outreach &nbsp;·&nbsp; Report generated {{ today_str }}</span>
+  <span>
+    <a href="{{ url_for('export_weekly') }}">↓ Export CSV</a>
+    &nbsp;·&nbsp;
+    <button onclick="window.print()" class="btn-link">⬇ Print / Export PDF</button>
+  </span>
 </div>
 
 {% endblock %}

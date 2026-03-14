@@ -475,33 +475,105 @@ def weekly_report():
     week_start, week_end = week_bounds()
     today_str = str(date.today())
 
-    total_attempts = db.execute(
+    # ── Fundraising goals ───────────────────────────────────────────────────
+    SUMMIT_GOAL = 10_000.0
+    CLASS_GOAL  = 60_000.0
+
+    # ── Executive summary — all-time ────────────────────────────────────────
+    total_contacts       = db.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
+    total_outreach       = db.execute("SELECT COUNT(*) FROM outreach_logs").fetchone()[0]
+    total_raised         = db.execute("SELECT COALESCE(SUM(donation_amount),0) FROM outreach_logs").fetchone()[0]
+    donations_count      = db.execute("SELECT COUNT(*) FROM outreach_logs WHERE donation_amount > 0").fetchone()[0]
+    volunteers_committed = db.execute("SELECT COUNT(*) FROM contacts WHERE status='Volunteered'").fetchone()[0]
+    followups_pending    = db.execute("SELECT COUNT(*) FROM contacts WHERE status='Follow Up Needed'").fetchone()[0]
+    interested_count     = db.execute("SELECT COUNT(*) FROM contacts WHERE status='Interested'").fetchone()[0]
+
+    # ── Goal progress ────────────────────────────────────────────────────────
+    summit_pct       = min(round((total_raised / SUMMIT_GOAL) * 100, 1), 100) if SUMMIT_GOAL else 0
+    class_pct        = min(round((total_raised / CLASS_GOAL)  * 100, 1), 100) if CLASS_GOAL  else 0
+    summit_remaining = max(SUMMIT_GOAL - total_raised, 0)
+    class_remaining  = max(CLASS_GOAL  - total_raised, 0)
+
+    # ── Pipeline breakdown (all contacts, ordered by PIPELINE_STATUSES) ─────
+    pipeline_rows = db.execute(
+        "SELECT status, COUNT(*) as cnt FROM contacts GROUP BY status"
+    ).fetchall()
+    pipeline_map  = {row["status"]: row["cnt"] for row in pipeline_rows}
+    pipeline_data = [
+        {
+            "status": s,
+            "cnt":    pipeline_map.get(s, 0),
+            "pct":    round((pipeline_map.get(s, 0) / total_contacts) * 100, 1) if total_contacts else 0,
+        }
+        for s in PIPELINE_STATUSES
+    ]
+
+    # ── All-time outreach breakdowns ─────────────────────────────────────────
+    by_method_all  = db.execute(
+        "SELECT method, COUNT(*) as cnt FROM outreach_logs GROUP BY method ORDER BY cnt DESC"
+    ).fetchall()
+    by_outcome_all = db.execute(
+        "SELECT outcome, COUNT(*) as cnt FROM outreach_logs GROUP BY outcome ORDER BY cnt DESC"
+    ).fetchall()
+
+    # Weekly lookup maps (for side-by-side all-time vs this-week columns)
+    by_method_week_rows  = db.execute(
+        "SELECT method,  COUNT(*) as cnt FROM outreach_logs WHERE outreach_date BETWEEN ? AND ? GROUP BY method",
+        (week_start, week_end)
+    ).fetchall()
+    by_outcome_week_rows = db.execute(
+        "SELECT outcome, COUNT(*) as cnt FROM outreach_logs WHERE outreach_date BETWEEN ? AND ? GROUP BY outcome",
+        (week_start, week_end)
+    ).fetchall()
+    method_week_map  = {r["method"]:  r["cnt"] for r in by_method_week_rows}
+    outcome_week_map = {r["outcome"]: r["cnt"] for r in by_outcome_week_rows}
+
+    # ── Weekly stats ─────────────────────────────────────────────────────────
+    total_attempts  = db.execute(
         "SELECT COUNT(*) FROM outreach_logs WHERE outreach_date BETWEEN ? AND ?",
         (week_start, week_end)
     ).fetchone()[0]
-
     unique_contacts = db.execute(
         "SELECT COUNT(DISTINCT contact_id) FROM outreach_logs WHERE outreach_date BETWEEN ? AND ?",
         (week_start, week_end)
     ).fetchone()[0]
-
-    by_method = db.execute(
-        "SELECT method, COUNT(*) as cnt FROM outreach_logs WHERE outreach_date BETWEEN ? AND ? GROUP BY method ORDER BY cnt DESC",
+    donation_total  = db.execute(
+        "SELECT COALESCE(SUM(donation_amount),0) FROM outreach_logs WHERE outreach_date BETWEEN ? AND ?",
         (week_start, week_end)
-    ).fetchall()
-
-    by_outcome = db.execute(
-        "SELECT outcome, COUNT(*) as cnt FROM outreach_logs WHERE outreach_date BETWEEN ? AND ? GROUP BY outcome ORDER BY cnt DESC",
-        (week_start, week_end)
-    ).fetchall()
-
+    ).fetchone()[0]
     by_team = db.execute(
-        "SELECT team_member, COUNT(*) as cnt FROM outreach_logs WHERE outreach_date BETWEEN ? AND ? GROUP BY team_member ORDER BY cnt DESC",
+        "SELECT team_member, COUNT(*) as cnt FROM outreach_logs "
+        "WHERE outreach_date BETWEEN ? AND ? GROUP BY team_member ORDER BY cnt DESC",
+        (week_start, week_end)
+    ).fetchall()
+    new_contacts = db.execute(
+        "SELECT * FROM contacts WHERE date(created_at) BETWEEN ? AND ? ORDER BY created_at DESC",
         (week_start, week_end)
     ).fetchall()
 
+    # ── Donation stats (all-time) ─────────────────────────────────────────────
+    donation_avg = db.execute(
+        "SELECT COALESCE(AVG(donation_amount),0) FROM outreach_logs WHERE donation_amount > 0"
+    ).fetchone()[0]
+    donation_max = db.execute(
+        "SELECT COALESCE(MAX(donation_amount),0) FROM outreach_logs"
+    ).fetchone()[0]
+    recent_donations = db.execute("""
+        SELECT ol.outreach_date,
+               c.first_name || ' ' || c.last_name AS contact_name,
+               c.id AS contact_id,
+               ol.donation_amount, ol.team_member
+        FROM outreach_logs ol
+        JOIN contacts c ON c.id = ol.contact_id
+        WHERE ol.donation_amount > 0
+        ORDER BY ol.outreach_date DESC, ol.created_at DESC
+        LIMIT 10
+    """).fetchall()
+
+    # ── Scheduled & overdue follow-ups ────────────────────────────────────────
     followups_due = db.execute("""
-        SELECT ol.follow_up_date, c.first_name || ' ' || c.last_name AS contact_name,
+        SELECT ol.follow_up_date,
+               c.first_name || ' ' || c.last_name AS contact_name,
                ol.team_member, ol.notes, c.id AS contact_id
         FROM outreach_logs ol JOIN contacts c ON c.id = ol.contact_id
         WHERE ol.follow_up_date BETWEEN ? AND ?
@@ -509,29 +581,74 @@ def weekly_report():
     """, (week_start, week_end)).fetchall()
 
     overdue_followups = db.execute("""
-        SELECT ol.follow_up_date, c.first_name || ' ' || c.last_name AS contact_name,
+        SELECT ol.follow_up_date,
+               c.first_name || ' ' || c.last_name AS contact_name,
                ol.team_member, ol.notes, c.id AS contact_id
         FROM outreach_logs ol JOIN contacts c ON c.id = ol.contact_id
-        WHERE ol.follow_up_date < ? AND ol.follow_up_date IS NOT NULL AND ol.follow_up_date != ''
+        WHERE ol.follow_up_date < ?
+          AND ol.follow_up_date IS NOT NULL
+          AND ol.follow_up_date != ''
         ORDER BY ol.follow_up_date
     """, (today_str,)).fetchall()
 
-    donation_total = db.execute(
-        "SELECT COALESCE(SUM(donation_amount),0) FROM outreach_logs WHERE outreach_date BETWEEN ? AND ?",
-        (week_start, week_end)
-    ).fetchone()[0]
+    # ── Contacts whose pipeline status is "Follow Up Needed" ─────────────────
+    followup_list = db.execute("""
+        SELECT c.id,
+               c.first_name || ' ' || c.last_name AS name,
+               c.organization, c.phone, c.email,
+               (SELECT MAX(outreach_date)
+                  FROM outreach_logs WHERE contact_id = c.id)   AS last_outreach_date,
+               (SELECT follow_up_date FROM outreach_logs
+                  WHERE contact_id = c.id
+                  ORDER BY created_at DESC LIMIT 1)              AS next_follow_up,
+               (SELECT notes FROM outreach_logs
+                  WHERE contact_id = c.id
+                  ORDER BY created_at DESC LIMIT 1)              AS last_notes
+        FROM contacts c
+        WHERE c.status = 'Follow Up Needed'
+        ORDER BY last_outreach_date ASC
+    """).fetchall()
 
-    new_contacts = db.execute(
-        "SELECT * FROM contacts WHERE date(created_at) BETWEEN ? AND ? ORDER BY created_at DESC",
-        (week_start, week_end)
-    ).fetchall()
+    # ── Recent outreach snapshot (last 20 entries) ───────────────────────────
+    recent_outreach = db.execute("""
+        SELECT ol.outreach_date,
+               c.first_name || ' ' || c.last_name AS contact_name,
+               c.id AS contact_id,
+               ol.team_member, ol.method, ol.outcome,
+               ol.donation_amount, ol.follow_up_date, ol.notes
+        FROM outreach_logs ol
+        JOIN contacts c ON c.id = ol.contact_id
+        ORDER BY ol.outreach_date DESC, ol.created_at DESC
+        LIMIT 20
+    """).fetchall()
 
     return render_template("weekly_report.html",
-        week_start=week_start, week_end=week_end,
-        total_attempts=total_attempts, unique_contacts=unique_contacts,
-        by_method=by_method, by_outcome=by_outcome, by_team=by_team,
+        week_start=week_start, week_end=week_end, today_str=today_str,
+        # Goals
+        SUMMIT_GOAL=SUMMIT_GOAL,         CLASS_GOAL=CLASS_GOAL,
+        summit_pct=summit_pct,           class_pct=class_pct,
+        summit_remaining=summit_remaining, class_remaining=class_remaining,
+        # Executive summary
+        total_contacts=total_contacts,   total_outreach=total_outreach,
+        total_raised=total_raised,       donations_count=donations_count,
+        volunteers_committed=volunteers_committed,
+        followups_pending=followups_pending, interested_count=interested_count,
+        # Pipeline
+        pipeline_data=pipeline_data,
+        # Outreach activity
+        by_method_all=by_method_all,     by_outcome_all=by_outcome_all,
+        method_week_map=method_week_map, outcome_week_map=outcome_week_map,
+        total_attempts=total_attempts,   unique_contacts=unique_contacts,
+        donation_total=donation_total,   by_team=by_team,
+        new_contacts=new_contacts,
+        # Donations
+        donation_avg=donation_avg, donation_max=donation_max,
+        recent_donations=recent_donations,
+        # Follow-ups
         followups_due=followups_due, overdue_followups=overdue_followups,
-        donation_total=donation_total, new_contacts=new_contacts,
+        followup_list=followup_list,
+        # Snapshot
+        recent_outreach=recent_outreach,
     )
 
 

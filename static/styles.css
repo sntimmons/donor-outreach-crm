@@ -642,6 +642,394 @@ a:hover { text-decoration: underline; }
 }
 .help-outcome-list li { margin-bottom: 0.3rem; }
 
+/* ============================================================
+   Executive Report
+   ============================================================ */
+
+/* ── Screen header ─────────────────────────────────────────── */
+.exec-report-header {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2a5298 100%);
+  color: #fff;
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  margin-bottom: 1.75rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.exec-report-org {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,.65);
+  margin-bottom: 0.3rem;
+}
+.exec-report-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  margin-bottom: 0.4rem;
+  color: #fff;
+}
+.exec-report-meta {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,.7);
+}
+.exec-report-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-shrink: 0;
+  align-self: center;
+}
+.btn-white-outline {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.55);
+  padding: 0.4rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.btn-white-outline:hover {
+  background: rgba(255,255,255,.15);
+  border-color: #fff;
+  text-decoration: none;
+  color: #fff;
+}
+
+/* ── Print-only header (hidden on screen) ─────────────────── */
+.print-only { display: none; }
+.print-only-header {
+  border-bottom: 3px double #1e3a5f;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.print-org {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #555;
+  margin-bottom: 0.2rem;
+}
+.print-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin-bottom: 0.2rem;
+}
+.print-meta {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+/* ── Section blocks ────────────────────────────────────────── */
+.exec-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+}
+.exec-section-heading {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 2px solid #1e3a5f;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.exec-sec-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1e3a5f;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-right: 0.4rem;
+}
+.exec-heading-note {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.exec-sub-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+
+/* ── Executive summary tiles ───────────────────────────────── */
+.exec-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.85rem;
+}
+.exec-stat {
+  text-align: center;
+  padding: 1rem 0.6rem;
+  background: #f7f8fc;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.exec-stat-money { border-top: 3px solid #059669; }
+.exec-stat-value {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 0.35rem;
+  color: #1e3a5f;
+}
+.exec-stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+/* ── Fundraising goal bars ─────────────────────────────────── */
+.goal-item { }
+.goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.4rem;
+}
+.goal-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.goal-target {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.goal-pct-label {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  flex-shrink: 0;
+}
+.goal-track {
+  background: #e5e7eb;
+  border-radius: 100px;
+  height: 18px;
+  overflow: hidden;
+  margin-bottom: 0.45rem;
+}
+.goal-fill {
+  height: 100%;
+  border-radius: 100px;
+  min-width: 4px;
+  transition: width 0.5s ease;
+}
+.goal-fill-green  { background: linear-gradient(90deg, #059669, #34d399); }
+.goal-fill-blue   { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+.goal-fill-orange { background: linear-gradient(90deg, #d97706, #fbbf24); }
+.goal-fill-red    { background: linear-gradient(90deg, #dc2626, #f87171); }
+.goal-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+.goal-raised    { font-weight: 700; color: #059669; }
+.goal-remaining { color: var(--muted); }
+.goal-note {
+  margin-top: 1.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── Pipeline table ────────────────────────────────────────── */
+.pipeline-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.pipeline-tbl th {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+  text-align: left;
+}
+.pipeline-tbl td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.pipeline-tbl tbody tr:last-child td { border-bottom: none; }
+.pipeline-tbl .pipeline-bar-col { min-width: 180px; }
+.pipeline-mini-bar {
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 100px;
+  overflow: hidden;
+}
+.pipeline-mini-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, #2a5298, #5b8def);
+  min-width: 3px;
+}
+
+/* ── Weekly activity bar ───────────────────────────────────── */
+.exec-week-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+.exec-week-chip {
+  background: #f7f8fc;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.exec-week-chip-money strong { color: #059669; }
+
+/* ── 2-column layout ───────────────────────────────────────── */
+.report-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+/* ── Donation stat tiles ───────────────────────────────────── */
+.donation-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+.donation-stat {
+  text-align: center;
+  padding: 0.85rem 0.5rem;
+  background: #f7f8fc;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.donation-stat-value {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #059669;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+.donation-stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+
+/* ── Misc report helpers ───────────────────────────────────── */
+.text-right { text-align: right; }
+.amount-green { color: #059669; }
+.exec-report-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+}
+.exec-report-footer a { color: var(--primary); }
+
+/* ============================================================
+   Print styles
+   ============================================================ */
+@media print {
+  /* Hide UI chrome */
+  .navbar,
+  .exec-report-actions,
+  .exec-report-footer,
+  .flash-messages,
+  .footer,
+  .no-print            { display: none !important; }
+
+  /* Show print-only elements */
+  .print-only          { display: block !important; }
+
+  /* Page setup */
+  @page { margin: 0.75in; }
+  body  { background: #fff; font-size: 11pt; }
+  .container { max-width: none; padding: 0; }
+
+  /* Remove card shadows for print */
+  .exec-section {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    page-break-inside: avoid;
+    margin-bottom: 0.6rem;
+    padding: 1rem;
+  }
+
+  /* Keep gradient fills when printing */
+  .goal-fill,
+  .pipeline-mini-fill  { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Hide the screen header (we use print-only-header instead) */
+  .exec-report-header  { display: none !important; }
+
+  /* Compact summary grid for print */
+  .exec-summary-grid   { grid-template-columns: repeat(4, 1fr); }
+  .donation-stats      { grid-template-columns: repeat(4, 1fr); }
+  .report-2col         { grid-template-columns: 1fr 1fr; }
+
+  /* Links print as plain text */
+  a { color: inherit !important; text-decoration: none !important; }
+
+  /* Avoid orphaned table rows */
+  tr { page-break-inside: avoid; }
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 700px) {
   .navbar { padding: 0 1rem; }
@@ -654,4 +1042,10 @@ a:hover { text-decoration: underline; }
   .nav-links a { padding: 0.3rem 0.5rem; font-size: 0.82rem; }
   .help-compare { grid-template-columns: 1fr; }
   .help-toc ul { flex-direction: column; gap: 0.3rem; }
+  /* Report overrides for mobile */
+  .exec-report-header { flex-direction: column; }
+  .exec-summary-grid  { grid-template-columns: repeat(2, 1fr); }
+  .report-2col        { grid-template-columns: 1fr; }
+  .donation-stats     { grid-template-columns: repeat(2, 1fr); }
+  .exec-report-actions { flex-wrap: wrap; }
 }
