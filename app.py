@@ -2,10 +2,11 @@ import os
 import sqlite3
 import csv
 import io
+from functools import wraps
 from datetime import datetime, date, timedelta
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, flash, g, Response
+    url_for, flash, g, Response, session
 )
 
 app = Flask(__name__)
@@ -13,6 +14,27 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-in-pr
 
 DATABASE = os.environ.get("DATABASE_PATH", "crm.db")
 
+# ---------------------------------------------------------------------------
+# Login credentials — set APP_USERNAME and APP_PASSWORD in Railway Variables
+# ---------------------------------------------------------------------------
+
+APP_USERNAME = os.environ.get("APP_USERNAME", "admin")
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "password")
+
+# ---------------------------------------------------------------------------
+# Pipeline status values (used in forms and templates)
+# ---------------------------------------------------------------------------
+
+PIPELINE_STATUSES = [
+    "New",
+    "Contacted",
+    "Interested",
+    "Follow Up Needed",
+    "Committed",
+    "Donated",
+    "Volunteered",
+    "Not Interested",
+]
 
 # ---------------------------------------------------------------------------
 # Database helpers
@@ -38,19 +60,21 @@ def init_db():
     db = sqlite3.connect(DATABASE)
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys = ON")
+
+    # Create tables if they do not exist
     db.executescript("""
         CREATE TABLE IF NOT EXISTS contacts (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name  TEXT NOT NULL,
-            last_name   TEXT NOT NULL,
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            first_name   TEXT NOT NULL,
+            last_name    TEXT NOT NULL,
             contact_type TEXT NOT NULL CHECK(contact_type IN ('donor','volunteer')),
-            phone       TEXT,
-            email       TEXT,
+            phone        TEXT,
+            email        TEXT,
             organization TEXT,
-            status      TEXT DEFAULT 'active',
-            notes       TEXT,
-            created_at  TEXT DEFAULT (datetime('now')),
-            updated_at  TEXT DEFAULT (datetime('now'))
+            status       TEXT DEFAULT 'New',
+            notes        TEXT,
+            created_at   TEXT DEFAULT (datetime('now')),
+            updated_at   TEXT DEFAULT (datetime('now'))
         );
 
         CREATE TABLE IF NOT EXISTS outreach_logs (
@@ -68,45 +92,14 @@ def init_db():
     """)
     db.commit()
 
-    # Seed data — only insert if tables are empty
-    count = db.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
-    if count == 0:
-        today = date.today()
-        mon = today - timedelta(days=today.weekday())  # Monday this week
+    # Migrate old status values to pipeline values for any existing data
+    try:
+        db.execute("UPDATE contacts SET status = 'New' WHERE status IN ('active', 'prospect')")
+        db.execute("UPDATE contacts SET status = 'Not Interested' WHERE status = 'inactive'")
+        db.commit()
+    except Exception:
+        pass
 
-        contacts = [
-            ("Maria",   "Santos",   "donor",     "555-201-0001", "maria.santos@email.com",   "Community First",  "active", "Major donor, prefers email contact."),
-            ("James",   "Okafor",   "donor",     "555-201-0002", "james.okafor@email.com",   "Okafor Realty",    "active", "Annual giver, interested in capital campaign."),
-            ("Priya",   "Nair",     "volunteer", "555-201-0003", "priya.nair@email.com",     "",                 "active", "Available weekends. Great with outreach calls."),
-            ("Carlos",  "Rivera",   "donor",     "555-201-0004", "carlos.rivera@email.com",  "Rivera Law Group", "active", "Corporate sponsor. Contact Q4."),
-            ("Aisha",   "Johnson",  "volunteer", "555-201-0005", "aisha.johnson@email.com",  "",                 "active", "Team lead for Saturday events."),
-            ("Tom",     "Huang",    "donor",     "555-201-0006", "tom.huang@email.com",      "Huang Tech",       "active", "Mid-level donor, warm relationship."),
-            ("Sandra",  "Williams", "volunteer", "555-201-0007", "sandra.williams@email.com","",                 "active", ""),
-            ("Derek",   "Patel",    "donor",     "555-201-0008", "derek.patel@email.com",    "Patel Group",      "active", "Lapsed donor — needs re-engagement."),
-        ]
-        db.executemany(
-            "INSERT INTO contacts (first_name,last_name,contact_type,phone,email,organization,status,notes) VALUES (?,?,?,?,?,?,?,?)",
-            contacts
-        )
-
-        logs = [
-            (1, str(mon),                    "Alex Team",  "call",      "donated",          250.00, None,            "Pledged annual gift."),
-            (2, str(mon),                    "Alex Team",  "email",     "interested",          0,   str(mon + timedelta(days=7)), "Sent capital campaign overview."),
-            (3, str(mon + timedelta(days=1)),"Jordan Team","call",      "reached",             0,   None,            "Confirmed Saturday volunteer shift."),
-            (4, str(mon + timedelta(days=1)),"Alex Team",  "call",      "voicemail",           0,   str(mon + timedelta(days=3)), "Left voicemail about sponsorship."),
-            (5, str(mon + timedelta(days=2)),"Jordan Team","in_person", "volunteered",         0,   None,            "Attended Monday planning meeting."),
-            (6, str(mon + timedelta(days=2)),"Alex Team",  "email",     "donated",           100,   None,            "Online donation received."),
-            (7, str(mon + timedelta(days=3)),"Jordan Team","text",      "follow_up_needed",    0,   str(mon + timedelta(days=5)), "Interested in next event."),
-            (8, str(mon + timedelta(days=3)),"Alex Team",  "call",      "no_answer",           0,   str(mon + timedelta(days=7)), "Will retry next week."),
-            (1, str(mon - timedelta(days=8)),"Alex Team",  "email",     "donated",           500,   None,            "Year-end gift last week."),
-            (2, str(mon - timedelta(days=9)),"Alex Team",  "call",      "reached",             0,   str(mon - timedelta(days=2)), "Good conversation — follow up sent."),
-        ]
-        db.executemany(
-            "INSERT INTO outreach_logs (contact_id,outreach_date,team_member,method,outcome,donation_amount,follow_up_date,notes) VALUES (?,?,?,?,?,?,?,?)",
-            logs
-        )
-
-    db.commit()
     db.close()
 
 
@@ -115,6 +108,46 @@ def init_db():
 # ---------------------------------------------------------------------------
 
 init_db()
+
+
+# ---------------------------------------------------------------------------
+# Auth helpers
+# ---------------------------------------------------------------------------
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("logged_in"):
+            flash("Please log in to continue.", "error")
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ---------------------------------------------------------------------------
+# Login / Logout
+# ---------------------------------------------------------------------------
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if session.get("logged_in"):
+        return redirect(url_for("dashboard"))
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        if username == APP_USERNAME and password == APP_PASSWORD:
+            session["logged_in"] = True
+            session["username"] = username
+            return redirect(url_for("dashboard"))
+        flash("Incorrect username or password. Please try again.", "error")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    flash("You have been logged out.", "success")
+    return redirect(url_for("login"))
 
 
 # ---------------------------------------------------------------------------
@@ -133,14 +166,15 @@ def week_bounds():
 # ---------------------------------------------------------------------------
 
 @app.route("/")
+@login_required
 def dashboard():
     db = get_db()
     week_start, week_end = week_bounds()
     today_str = str(date.today())
 
-    total_contacts  = db.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
-    total_donors    = db.execute("SELECT COUNT(*) FROM contacts WHERE contact_type='donor'").fetchone()[0]
-    total_volunteers= db.execute("SELECT COUNT(*) FROM contacts WHERE contact_type='volunteer'").fetchone()[0]
+    total_contacts   = db.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
+    total_donors     = db.execute("SELECT COUNT(*) FROM contacts WHERE contact_type='donor'").fetchone()[0]
+    total_volunteers = db.execute("SELECT COUNT(*) FROM contacts WHERE contact_type='volunteer'").fetchone()[0]
 
     attempts_week = db.execute(
         "SELECT COUNT(*) FROM outreach_logs WHERE outreach_date BETWEEN ? AND ?",
@@ -175,6 +209,21 @@ def dashboard():
         LIMIT 10
     """).fetchall()
 
+    # Contacts needing follow-up (pipeline status = Follow Up Needed)
+    followup_contacts = db.execute("""
+        SELECT * FROM contacts
+        WHERE status = 'Follow Up Needed'
+        ORDER BY updated_at ASC
+    """).fetchall()
+
+    # Contact counts by pipeline status
+    status_counts = db.execute("""
+        SELECT status, COUNT(*) as cnt
+        FROM contacts
+        GROUP BY status
+        ORDER BY cnt DESC
+    """).fetchall()
+
     return render_template("dashboard.html",
         total_contacts=total_contacts,
         total_donors=total_donors,
@@ -187,6 +236,8 @@ def dashboard():
         recent=recent,
         week_start=week_start,
         week_end=week_end,
+        followup_contacts=followup_contacts,
+        status_counts=status_counts,
     )
 
 
@@ -195,10 +246,12 @@ def dashboard():
 # ---------------------------------------------------------------------------
 
 @app.route("/contacts")
+@login_required
 def contacts():
     db = get_db()
-    q       = request.args.get("q", "").strip()
-    ctype   = request.args.get("type", "").strip()
+    q      = request.args.get("q", "").strip()
+    ctype  = request.args.get("type", "").strip()
+    status = request.args.get("status", "").strip()
 
     sql = "SELECT * FROM contacts WHERE 1=1"
     params = []
@@ -209,13 +262,19 @@ def contacts():
     if ctype in ("donor", "volunteer"):
         sql += " AND contact_type = ?"
         params.append(ctype)
+    if status:
+        sql += " AND status = ?"
+        params.append(status)
     sql += " ORDER BY last_name, first_name"
 
     rows = db.execute(sql, params).fetchall()
-    return render_template("contacts.html", contacts=rows, q=q, ctype=ctype)
+    return render_template("contacts.html",
+        contacts=rows, q=q, ctype=ctype, status=status,
+        pipeline_statuses=PIPELINE_STATUSES)
 
 
 @app.route("/contacts/new", methods=["GET", "POST"])
+@login_required
 def contact_new():
     if request.method == "POST":
         f = request.form
@@ -225,25 +284,27 @@ def contact_new():
         phone        = f.get("phone", "").strip()
         email        = f.get("email", "").strip()
         organization = f.get("organization", "").strip()
-        status       = f.get("status", "active")
+        status       = f.get("status", "New")
         notes        = f.get("notes", "").strip()
 
         if not first_name or not last_name:
             flash("First name and last name are required.", "error")
-            return render_template("contact_form.html", contact=f, action="new")
+            return render_template("contact_form.html", contact=f, action="new",
+                                   pipeline_statuses=PIPELINE_STATUSES)
 
         db = get_db()
-        # Duplicate check
         if email:
             dup = db.execute("SELECT id FROM contacts WHERE email = ?", (email,)).fetchone()
             if dup:
                 flash("A contact with that email already exists.", "error")
-                return render_template("contact_form.html", contact=f, action="new")
+                return render_template("contact_form.html", contact=f, action="new",
+                                       pipeline_statuses=PIPELINE_STATUSES)
         if phone:
             dup = db.execute("SELECT id FROM contacts WHERE phone = ?", (phone,)).fetchone()
             if dup:
                 flash("A contact with that phone number already exists.", "error")
-                return render_template("contact_form.html", contact=f, action="new")
+                return render_template("contact_form.html", contact=f, action="new",
+                                       pipeline_statuses=PIPELINE_STATUSES)
 
         db.execute(
             "INSERT INTO contacts (first_name,last_name,contact_type,phone,email,organization,status,notes) VALUES (?,?,?,?,?,?,?,?)",
@@ -253,10 +314,12 @@ def contact_new():
         flash(f"{first_name} {last_name} added successfully.", "success")
         return redirect(url_for("contacts"))
 
-    return render_template("contact_form.html", contact={}, action="new")
+    return render_template("contact_form.html", contact={}, action="new",
+                           pipeline_statuses=PIPELINE_STATUSES)
 
 
 @app.route("/contacts/<int:cid>/edit", methods=["GET", "POST"])
+@login_required
 def contact_edit(cid):
     db = get_db()
     contact = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
@@ -272,24 +335,26 @@ def contact_edit(cid):
         phone        = f.get("phone", "").strip()
         email        = f.get("email", "").strip()
         organization = f.get("organization", "").strip()
-        status       = f.get("status", "active")
+        status       = f.get("status", "New")
         notes        = f.get("notes", "").strip()
 
         if not first_name or not last_name:
             flash("First name and last name are required.", "error")
-            return render_template("contact_form.html", contact=f, action="edit", cid=cid)
+            return render_template("contact_form.html", contact=f, action="edit", cid=cid,
+                                   pipeline_statuses=PIPELINE_STATUSES)
 
-        # Duplicate check (exclude self)
         if email:
             dup = db.execute("SELECT id FROM contacts WHERE email=? AND id!=?", (email, cid)).fetchone()
             if dup:
                 flash("Another contact with that email already exists.", "error")
-                return render_template("contact_form.html", contact=f, action="edit", cid=cid)
+                return render_template("contact_form.html", contact=f, action="edit", cid=cid,
+                                       pipeline_statuses=PIPELINE_STATUSES)
         if phone:
             dup = db.execute("SELECT id FROM contacts WHERE phone=? AND id!=?", (phone, cid)).fetchone()
             if dup:
                 flash("Another contact with that phone already exists.", "error")
-                return render_template("contact_form.html", contact=f, action="edit", cid=cid)
+                return render_template("contact_form.html", contact=f, action="edit", cid=cid,
+                                       pipeline_statuses=PIPELINE_STATUSES)
 
         db.execute("""
             UPDATE contacts SET first_name=?,last_name=?,contact_type=?,phone=?,email=?,
@@ -299,10 +364,12 @@ def contact_edit(cid):
         flash("Contact updated.", "success")
         return redirect(url_for("contact_detail", cid=cid))
 
-    return render_template("contact_form.html", contact=contact, action="edit", cid=cid)
+    return render_template("contact_form.html", contact=contact, action="edit", cid=cid,
+                           pipeline_statuses=PIPELINE_STATUSES)
 
 
 @app.route("/contacts/<int:cid>")
+@login_required
 def contact_detail(cid):
     db = get_db()
     contact = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
@@ -317,6 +384,7 @@ def contact_detail(cid):
 
 
 @app.route("/contacts/<int:cid>/delete", methods=["POST"])
+@login_required
 def contact_delete(cid):
     db = get_db()
     contact = db.execute("SELECT * FROM contacts WHERE id=?", (cid,)).fetchone()
@@ -332,6 +400,7 @@ def contact_delete(cid):
 # ---------------------------------------------------------------------------
 
 @app.route("/outreach")
+@login_required
 def outreach_logs():
     db = get_db()
     logs = db.execute("""
@@ -345,9 +414,12 @@ def outreach_logs():
 
 @app.route("/outreach/new", methods=["GET", "POST"])
 @app.route("/contacts/<int:cid>/outreach/new", methods=["GET", "POST"])
+@login_required
 def outreach_new(cid=None):
     db = get_db()
-    contacts_list = db.execute("SELECT id, first_name || ' ' || last_name AS name FROM contacts ORDER BY last_name").fetchall()
+    contacts_list = db.execute(
+        "SELECT id, first_name || ' ' || last_name AS name FROM contacts ORDER BY last_name"
+    ).fetchall()
 
     if request.method == "POST":
         f = request.form
@@ -397,6 +469,7 @@ def outreach_new(cid=None):
 # ---------------------------------------------------------------------------
 
 @app.route("/report")
+@login_required
 def weekly_report():
     db = get_db()
     week_start, week_end = week_bounds()
@@ -467,6 +540,7 @@ def weekly_report():
 # ---------------------------------------------------------------------------
 
 @app.route("/export/contacts")
+@login_required
 def export_contacts():
     db = get_db()
     rows = db.execute("SELECT * FROM contacts ORDER BY last_name, first_name").fetchall()
@@ -480,6 +554,7 @@ def export_contacts():
 
 
 @app.route("/export/outreach")
+@login_required
 def export_outreach():
     db = get_db()
     rows = db.execute("""
@@ -498,6 +573,7 @@ def export_outreach():
 
 
 @app.route("/export/weekly")
+@login_required
 def export_weekly():
     db = get_db()
     week_start, week_end = week_bounds()
@@ -523,6 +599,7 @@ def export_weekly():
 # ---------------------------------------------------------------------------
 
 @app.route("/how-to-use")
+@login_required
 def how_to_use():
     return render_template("how_to_use.html")
 

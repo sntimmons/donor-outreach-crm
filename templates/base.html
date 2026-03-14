@@ -18,6 +18,12 @@
       <li><a href="{{ url_for('weekly_report') }}" {% if request.endpoint == 'weekly_report' %}class="active"{% endif %}>Weekly Report</a></li>
       <li><a href="{{ url_for('how_to_use') }}" {% if request.endpoint == 'how_to_use' %}class="active"{% endif %}>How to Use</a></li>
     </ul>
+    <div class="nav-right">
+      {% if session.get('logged_in') %}
+        <span class="nav-user">{{ session.get('username', '') }}</span>
+        <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">Log Out</a>
+      {% endif %}
+    </div>
   </nav>
 
   <div class="container">

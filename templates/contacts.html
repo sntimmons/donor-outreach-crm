@@ -13,8 +13,14 @@
     <option value="donor" {% if ctype == 'donor' %}selected{% endif %}>Donors</option>
     <option value="volunteer" {% if ctype == 'volunteer' %}selected{% endif %}>Volunteers</option>
   </select>
+  <select name="status" class="select-input">
+    <option value="">All Statuses</option>
+    {% for s in pipeline_statuses %}
+    <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
   <button type="submit" class="btn btn-secondary">Filter</button>
-  {% if q or ctype %}
+  {% if q or ctype or status %}
     <a href="{{ url_for('contacts') }}" class="btn btn-ghost">Clear</a>
   {% endif %}
 </form>

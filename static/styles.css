@@ -379,6 +379,114 @@ a:hover { text-decoration: underline; }
 .dashboard-links { display: flex; gap: 0.75rem; margin-top: 1.5rem; flex-wrap: wrap; }
 .footer { text-align: center; padding: 1.25rem; font-size: 0.78rem; color: var(--muted); border-top: 1px solid var(--border); background: var(--surface); }
 
+/* ---------- Navbar right (logout) ---------- */
+.navbar { justify-content: flex-start; }
+.nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.nav-user {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+.btn-sm { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+
+/* ---------- Pipeline stage bar (dashboard) ---------- */
+.pipeline-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+.pipeline-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  text-decoration: none;
+  min-width: 90px;
+  transition: box-shadow .15s, border-color .15s;
+  box-shadow: var(--shadow);
+}
+.pipeline-stage:hover { box-shadow: var(--shadow-md); border-color: var(--primary); text-decoration: none; }
+.pipeline-count { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+.pipeline-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; color: var(--muted); margin-top: 0.2rem; text-align: center; }
+
+.pipeline-new              { border-left: 3px solid #94a3b8; }
+.pipeline-contacted        { border-left: 3px solid var(--blue); }
+.pipeline-interested       { border-left: 3px solid var(--orange); }
+.pipeline-follow-up-needed { border-left: 3px solid var(--red); }
+.pipeline-committed        { border-left: 3px solid var(--purple); }
+.pipeline-donated          { border-left: 3px solid var(--gold); }
+.pipeline-volunteered      { border-left: 3px solid var(--green); }
+.pipeline-not-interested   { border-left: 3px solid #9ca3af; }
+
+/* ---------- Pipeline status badges ---------- */
+.badge-status-New              { background: #f1f5f9; color: #475569; }
+.badge-status-Contacted        { background: #dbeafe; color: #1e40af; }
+.badge-status-Interested       { background: #fef3c7; color: #92400e; }
+.badge-status-Follow\ Up\ Needed { background: #ffedd5; color: #9a3412; }
+.badge-status-Committed        { background: #ede9fe; color: #5b21b6; }
+.badge-status-Donated          { background: #fefce8; color: #713f12; }
+.badge-status-Volunteered      { background: #d1fae5; color: #065f46; }
+.badge-status-Not\ Interested  { background: #f3f4f6; color: #6b7280; }
+/* Fallback for any unrecognised status */
+.badge-status-active   { background: #d1fae5; color: #065f46; }
+.badge-status-inactive { background: #f3f4f6; color: #6b7280; }
+.badge-status-prospect { background: #fef3c7; color: #92400e; }
+
+/* ---------- count-badge-orange ---------- */
+.count-badge-orange { background: var(--orange); }
+
+/* ---------- Login page ---------- */
+.login-body {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.login-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 2.25rem 2rem;
+  width: 100%;
+  max-width: 400px;
+}
+.login-brand {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 1.25rem;
+}
+.login-dot { margin-right: 0.3rem; }
+.login-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  margin-bottom: 0.35rem;
+}
+.login-subtitle {
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+.login-submit { width: 100%; justify-content: center; padding: 0.6rem 1rem; font-size: 0.95rem; }
+
 /* ---------- Field hints (outreach form) ---------- */
 .field-hint {
   display: block;
