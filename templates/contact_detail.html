@@ -44,7 +44,7 @@
     <dl class="info-list">
       <dt>Total Outreach</dt>
       <dd>{{ logs|length }}</dd>
-      <dt>Total Donated</dt>
+      <dt>Total Monetary</dt>
       <dd>${{ "%.0f"|format(logs|sum(attribute='donation_amount')) }}</dd>
       {% if logs %}
       <dt>Last Contact</dt>
@@ -68,7 +68,9 @@
         <th>Team Member</th>
         <th>Method</th>
         <th>Outcome</th>
-        <th>Donation</th>
+        <th>Category</th>
+        <th>Contribution Details</th>
+        <th>Monetary</th>
         <th>Follow-up</th>
         <th>Notes</th>
       </tr>
@@ -80,7 +82,19 @@
         <td>{{ log.team_member }}</td>
         <td><span class="badge badge-method-{{ log.method }}">{{ log.method.replace('_',' ') }}</span></td>
         <td><span class="badge badge-outcome-{{ log.outcome }}">{{ log.outcome.replace('_',' ') }}</span></td>
-        <td>{% if log.donation_amount %} ${{ "%.0f"|format(log.donation_amount) }} {% else %} &mdash; {% endif %}</td>
+        <td>
+          {% if log.contribution_category %}
+            <span class="contrib-cat-badge">{{ log.contribution_category }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td class="contrib-details-cell">
+          {{ log.contribution_details if log.contribution_details else '—' }}
+        </td>
+        <td>
+          {% if log.donation_amount and log.donation_amount > 0 %}
+            <strong class="amount-green">${{ "%.2f"|format(log.donation_amount) }}</strong>
+          {% else %}—{% endif %}
+        </td>
         <td>{{ log.follow_up_date if log.follow_up_date else '—' }}</td>
         <td class="notes-cell">{{ log.notes if log.notes else '—' }}</td>
       </tr>

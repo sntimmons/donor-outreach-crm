@@ -254,6 +254,46 @@ a:hover { text-decoration: underline; }
 .badge-outcome-donated          { background: #fefce8; color: #713f12; }
 .badge-outcome-volunteered      { background: #ecfdf5; color: #14532d; }
 
+/* ---------- Contribution tracking ---------- */
+
+/* Section divider label inside the outreach form */
+.contrib-section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--primary);
+  border-top: 1px solid var(--border);
+  margin: 0.25rem 0 0.75rem;
+  padding-top: 1rem;
+}
+
+/* Pill badge for contribution category in tables */
+.contrib-cat-badge {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #e0f2fe;
+  color: #0c4a6e;
+  border: 1px solid #bae6fd;
+}
+
+/* Cell for contribution details — wraps cleanly, not truncated */
+.contrib-details-cell {
+  font-size: 0.82rem;
+  color: var(--text);
+  max-width: 240px;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+/* Executive summary tile accent for non-cash contributions */
+.exec-stat-contrib { border-top: 3px solid var(--teal); }
+
 /* ---------- Form styles ---------- */
 .form-card {
   background: var(--surface);

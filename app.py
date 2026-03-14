@@ -37,6 +37,21 @@ PIPELINE_STATUSES = [
     "Not Interested",
 ]
 
+# Contribution categories — used in outreach form dropdown
+CONTRIBUTION_CATEGORIES = [
+    "Cash Donation",
+    "Materials / Supplies",
+    "Speaker / Presenter",
+    "Venue Support",
+    "Printing / Signage",
+    "Food / Beverages",
+    "Giveaways / Branded Items",
+    "Volunteer Support",
+    "Sponsorship",
+    "Services",
+    "Other Non-Cash Support",
+]
+
 # ---------------------------------------------------------------------------
 # Database helpers
 # ---------------------------------------------------------------------------
@@ -101,6 +116,17 @@ def init_db():
     except Exception:
         pass
 
+    # Safe column additions — ignored if the column already exists
+    for col_sql in [
+        "ALTER TABLE outreach_logs ADD COLUMN contribution_category TEXT DEFAULT ''",
+        "ALTER TABLE outreach_logs ADD COLUMN contribution_details  TEXT DEFAULT ''",
+    ]:
+        try:
+            db.execute(col_sql)
+            db.commit()
+        except Exception:
+            pass  # Column already present — safe to skip
+
     db.close()
 
 
@@ -130,6 +156,17 @@ else:
     print("[CRM] *** Data WILL BE LOST on the next Railway redeploy.  ***", file=sys.stderr)
     print("[CRM] *** Add a Railway Volume mounted at /data and set  ***", file=sys.stderr)
     print("[CRM] *** DATABASE_PATH=/data/crm.db to protect your data. ***", file=sys.stderr)
+
+# Auth credential confirmation — always visible in Railway deployment logs
+_env_username_set = bool(os.environ.get("APP_USERNAME"))
+_env_password_set = bool(os.environ.get("APP_PASSWORD"))
+print(f"[CRM] Auth: APP_USERNAME = '{APP_USERNAME}' "
+      f"({'from APP_USERNAME env var' if _env_username_set else 'FALLBACK — APP_USERNAME not set in environment'})",
+      file=sys.stderr)
+if _env_password_set:
+    print("[CRM] Auth: APP_PASSWORD is set from APP_PASSWORD env var.", file=sys.stderr)
+else:
+    print("[CRM] Auth: APP_PASSWORD not set in environment — using fallback value.", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +501,8 @@ def outreach_logs():
         JOIN contacts c ON c.id = ol.contact_id
         ORDER BY ol.outreach_date DESC, ol.created_at DESC
     """).fetchall()
-    return render_template("outreach_logs.html", logs=logs)
+    return render_template("outreach_logs.html", logs=logs,
+                           contribution_categories=CONTRIBUTION_CATEGORIES)
 
 
 @app.route("/outreach/new", methods=["GET", "POST"])
@@ -478,20 +516,43 @@ def outreach_new(cid=None):
 
     if request.method == "POST":
         f = request.form
-        contact_id      = f["contact_id"]
-        outreach_date   = f["outreach_date"]
-        team_member     = f["team_member"].strip()
-        method          = f["method"]
-        outcome         = f["outcome"]
-        donation_amount = f.get("donation_amount", "0") or "0"
-        follow_up_date  = f.get("follow_up_date", "").strip() or None
-        notes           = f.get("notes", "").strip()
+        contact_id            = f["contact_id"]
+        outreach_date         = f["outreach_date"]
+        team_member           = f["team_member"].strip()
+        method                = f["method"]
+        outcome               = f["outcome"]
+        donation_amount       = f.get("donation_amount", "0") or "0"
+        follow_up_date        = f.get("follow_up_date", "").strip() or None
+        notes                 = f.get("notes", "").strip()
+        contribution_category = f.get("contribution_category", "").strip()
+        contribution_details  = f.get("contribution_details", "").strip()
+
+        # Non-cash contributions require a description
+        if (contribution_category
+                and contribution_category != "Cash Donation"
+                and not contribution_details):
+            flash("Please describe the contribution — what exactly was offered or pledged?", "error")
+            logs = db.execute(
+                "SELECT ol.*, c.first_name||' '||c.last_name AS contact_name "
+                "FROM outreach_logs ol JOIN contacts c ON c.id=ol.contact_id "
+                "ORDER BY ol.outreach_date DESC"
+            ).fetchall()
+            return render_template("outreach_logs.html",
+                logs=logs, contacts_list=contacts_list,
+                show_form=True, form_data=f, preselect_cid=cid,
+                contribution_categories=CONTRIBUTION_CATEGORIES)
 
         if not contact_id or not outreach_date or not team_member:
             flash("Contact, date, and team member are required.", "error")
+            logs = db.execute(
+                "SELECT ol.*, c.first_name||' '||c.last_name AS contact_name "
+                "FROM outreach_logs ol JOIN contacts c ON c.id=ol.contact_id "
+                "ORDER BY ol.outreach_date DESC"
+            ).fetchall()
             return render_template("outreach_logs.html",
-                logs=db.execute("SELECT ol.*, c.first_name||' '||c.last_name AS contact_name FROM outreach_logs ol JOIN contacts c ON c.id=ol.contact_id ORDER BY ol.outreach_date DESC").fetchall(),
-                contacts_list=contacts_list, show_form=True, form_data=f, preselect_cid=cid)
+                logs=logs, contacts_list=contacts_list,
+                show_form=True, form_data=f, preselect_cid=cid,
+                contribution_categories=CONTRIBUTION_CATEGORIES)
 
         try:
             donation_amount = float(donation_amount)
@@ -499,9 +560,14 @@ def outreach_new(cid=None):
             donation_amount = 0.0
 
         db.execute("""
-            INSERT INTO outreach_logs (contact_id,outreach_date,team_member,method,outcome,donation_amount,follow_up_date,notes)
-            VALUES (?,?,?,?,?,?,?,?)
-        """, (contact_id, outreach_date, team_member, method, outcome, donation_amount, follow_up_date, notes))
+            INSERT INTO outreach_logs
+                (contact_id, outreach_date, team_member, method, outcome,
+                 donation_amount, follow_up_date, notes,
+                 contribution_category, contribution_details)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
+        """, (contact_id, outreach_date, team_member, method, outcome,
+              donation_amount, follow_up_date, notes,
+              contribution_category, contribution_details))
         db.commit()
         flash("Outreach log added.", "success")
 
@@ -516,7 +582,8 @@ def outreach_new(cid=None):
     """).fetchall()
     return render_template("outreach_logs.html",
         logs=logs, contacts_list=contacts_list,
-        show_form=True, form_data={}, preselect_cid=cid)
+        show_form=True, form_data={}, preselect_cid=cid,
+        contribution_categories=CONTRIBUTION_CATEGORIES)
 
 
 # ---------------------------------------------------------------------------
@@ -530,24 +597,19 @@ def weekly_report():
     week_start, week_end = week_bounds()
     today_str = str(date.today())
 
-    # ── Fundraising goals ───────────────────────────────────────────────────
-    SUMMIT_GOAL = 10_000.0
-    CLASS_GOAL  = 60_000.0
-
     # ── Executive summary — all-time ────────────────────────────────────────
     total_contacts       = db.execute("SELECT COUNT(*) FROM contacts").fetchone()[0]
     total_outreach       = db.execute("SELECT COUNT(*) FROM outreach_logs").fetchone()[0]
     total_raised         = db.execute("SELECT COALESCE(SUM(donation_amount),0) FROM outreach_logs").fetchone()[0]
     donations_count      = db.execute("SELECT COUNT(*) FROM outreach_logs WHERE donation_amount > 0").fetchone()[0]
+    non_cash_count       = db.execute(
+        "SELECT COUNT(*) FROM outreach_logs "
+        "WHERE contribution_category IS NOT NULL AND contribution_category != '' "
+        "AND contribution_category != 'Cash Donation'"
+    ).fetchone()[0]
     volunteers_committed = db.execute("SELECT COUNT(*) FROM contacts WHERE status='Volunteered'").fetchone()[0]
     followups_pending    = db.execute("SELECT COUNT(*) FROM contacts WHERE status='Follow Up Needed'").fetchone()[0]
     interested_count     = db.execute("SELECT COUNT(*) FROM contacts WHERE status='Interested'").fetchone()[0]
-
-    # ── Goal progress ────────────────────────────────────────────────────────
-    summit_pct       = min(round((total_raised / SUMMIT_GOAL) * 100, 1), 100) if SUMMIT_GOAL else 0
-    class_pct        = min(round((total_raised / CLASS_GOAL)  * 100, 1), 100) if CLASS_GOAL  else 0
-    summit_remaining = max(SUMMIT_GOAL - total_raised, 0)
-    class_remaining  = max(CLASS_GOAL  - total_raised, 0)
 
     # ── Pipeline breakdown (all contacts, ordered by PIPELINE_STATUSES) ─────
     pipeline_rows = db.execute(
@@ -670,22 +732,39 @@ def weekly_report():
                c.first_name || ' ' || c.last_name AS contact_name,
                c.id AS contact_id,
                ol.team_member, ol.method, ol.outcome,
-               ol.donation_amount, ol.follow_up_date, ol.notes
+               ol.donation_amount, ol.contribution_category, ol.contribution_details,
+               ol.follow_up_date, ol.notes
         FROM outreach_logs ol
         JOIN contacts c ON c.id = ol.contact_id
         ORDER BY ol.outreach_date DESC, ol.created_at DESC
         LIMIT 20
     """).fetchall()
 
+    # ── Support & contribution commitments ────────────────────────────────────
+    contribution_commitments = db.execute("""
+        SELECT c.first_name || ' ' || c.last_name AS contact_name,
+               c.id AS contact_id,
+               c.organization,
+               c.status,
+               ol.outreach_date AS last_contact_date,
+               ol.team_member,
+               ol.contribution_category,
+               ol.contribution_details,
+               ol.donation_amount,
+               ol.notes
+        FROM outreach_logs ol
+        JOIN contacts c ON c.id = ol.contact_id
+        WHERE (ol.donation_amount > 0
+           OR (ol.contribution_category IS NOT NULL AND ol.contribution_category != ''))
+        ORDER BY ol.outreach_date DESC
+    """).fetchall()
+
     return render_template("weekly_report.html",
         week_start=week_start, week_end=week_end, today_str=today_str,
-        # Goals
-        SUMMIT_GOAL=SUMMIT_GOAL,         CLASS_GOAL=CLASS_GOAL,
-        summit_pct=summit_pct,           class_pct=class_pct,
-        summit_remaining=summit_remaining, class_remaining=class_remaining,
         # Executive summary
         total_contacts=total_contacts,   total_outreach=total_outreach,
         total_raised=total_raised,       donations_count=donations_count,
+        non_cash_count=non_cash_count,
         volunteers_committed=volunteers_committed,
         followups_pending=followups_pending, interested_count=interested_count,
         # Pipeline
@@ -696,12 +775,14 @@ def weekly_report():
         total_attempts=total_attempts,   unique_contacts=unique_contacts,
         donation_total=donation_total,   by_team=by_team,
         new_contacts=new_contacts,
-        # Donations
+        # Monetary donations
         donation_avg=donation_avg, donation_max=donation_max,
         recent_donations=recent_donations,
         # Follow-ups
         followups_due=followups_due, overdue_followups=overdue_followups,
         followup_list=followup_list,
+        # Commitments
+        contribution_commitments=contribution_commitments,
         # Snapshot
         recent_outreach=recent_outreach,
     )
@@ -731,13 +812,17 @@ def export_outreach():
     db = get_db()
     rows = db.execute("""
         SELECT ol.id, c.first_name||' '||c.last_name, ol.outreach_date, ol.team_member,
-               ol.method, ol.outcome, ol.donation_amount, ol.follow_up_date, ol.notes, ol.created_at
+               ol.method, ol.outcome, ol.donation_amount,
+               ol.contribution_category, ol.contribution_details,
+               ol.follow_up_date, ol.notes, ol.created_at
         FROM outreach_logs ol JOIN contacts c ON c.id=ol.contact_id
         ORDER BY ol.outreach_date DESC
     """).fetchall()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["id","contact_name","outreach_date","team_member","method","outcome","donation_amount","follow_up_date","notes","created_at"])
+    writer.writerow(["id","contact_name","outreach_date","team_member","method","outcome",
+                     "donation_amount","contribution_category","contribution_details",
+                     "follow_up_date","notes","created_at"])
     for r in rows:
         writer.writerow(list(r))
     return Response(output.getvalue(), mimetype="text/csv",
